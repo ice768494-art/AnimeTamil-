@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Night Reel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#1c1526;--panel:#2a2038;--line:#3d3050;--text:#efe9f6;--mute:#a99dbb;--accent:#ffb89a;--link:#b9a7e8}
+@media (prefers-color-scheme:light){:root{--bg:#f6f1fa;--panel:#fff;--line:#ddd2e8;--text:#241a30;--mute:#6b5d7d;--accent:#c4521f;--link:#5a3fb0}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:400 16px/1.5 "Bricolage Grotesque",system-ui,sans-serif}
+header{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:20px clamp(16px,4vw,48px);border-bottom:1px solid var(--line)}
+h1{margin:0;font-weight:800;font-size:1.6rem;letter-spacing:-.02em;cursor:pointer}
+input{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:10px 14px;font:inherit;min-width:min(100%,260px)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{padding:24px clamp(16px,4vw,48px) 64px;max-width:1200px;margin:auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:20px}
+.card{background:none;border:0;padding:0;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.poster{aspect-ratio:2/3;border-radius:10px;background:var(--panel) center/cover;border:1px solid var(--line);display:grid;place-items:center;color:var(--mute);font-size:2rem;transition:transform .15s}
+.card:hover .poster{transform:translateY(-3px)}
+.card b{display:block;margin-top:8px;font-weight:600}
+.card span{color:var(--mute);font-size:.85rem}
+.back{background:none;border:0;color:var(--link);font:inherit;cursor:pointer;padding:0;margin-bottom:16px}
+.player{aspect-ratio:16/9;width:100%;border:0;border-radius:12px;background:#000}
+.layout{display:grid;grid-template-columns:1fr 280px;gap:24px}
+@media(max-width:860px){.layout{grid-template-columns:1fr}}
+.eps{display:flex;flex-direction:column;gap:6px;max-height:420px;overflow:auto}
+.ep{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font:inherit;text-align:left;cursor:pointer}
+.ep[aria-current=true]{border-color:var(--accent);color:var(--accent)}
+h2{margin:16px 0 4px}p.d{color:var(--mute);margin:0 0 12px;max-width:65ch}
+.empty{color:var(--mute)}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="home" tabindex="0">Night Reel</h1>
+  <input id="q" type="search" placeholder="Search titles" aria-label="Search titles">
+</header>
+<main id="app"></main>
+
+<script>
+/* ---------- EDIT YOUR CATALOG HERE ----------
+   Only add videos you own or have permission to stream.
+   "drive" accepts a full Google Drive share link or just the file ID.
+   Each file must be shared as "Anyone with the link: Viewer". */
+const CATALOG = [
+  {
+    id: "sample-show",
+    title: "Sample Show",
+    description: "Replace this entry with your own series.",
+    poster: "",            // optional: URL to a poster image
+    episodes: [
+      { title: "Episode 1", drive: "PASTE_DRIVE_LINK_OR_ID_HERE" },
+      { title: "Episode 2", drive: "PASTE_DRIVE_LINK_OR_ID_HERE" }
+    ]
+  },{
+  id: "my-show",                // unique, no spaces
+  title: "Loki",
+  description: "Short summary here.",
+  poster: "https://example.com/poster.jpg",   // optional
+  episodes: [
+    { title: "Episode 1", drive: "https://an-filter-bot-apky.onrender.com/watch/213/%40AnimeNetworkTamilLoki+S01+EP01+720p+Tamil.mkv?hash=AgADWC" },
+    { title: "Episode 2", drive: "https://drive.google.com/file/d/1GJnvykfKEGc9umg6NKGmM-_lziEUJ4dK/view?usp=sharing" }
+  ]
+  }
+];
+/* -------------------------------------------- */
+
+const app = document.getElementById("app");
+const q = document.getElementById("q");
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function driveId(v){
+  const m = v.match(/\/d\/([\w-]+)/) || v.match(/[?&]id=([\w-]+)/);
+  return m ? m[1] : v.trim();
+}
+const embed = v => "https://drive.google.com/file/d/" + driveId(v) + "/preview";
+
+function home(){
+  const term = q.value.trim().toLowerCase();
+  const list = CATALOG.filter(s => s.title.toLowerCase().includes(term));
+  if(!list.length){ app.innerHTML = '<p class="empty">No titles match your search.</p>'; return; }
+  app.innerHTML = '<div class="grid">' + list.map(s =>
+    `<button class="card" data-id="${esc(s.id)}">
+      <div class="poster" style="${s.poster ? "background-image:url('" + esc(s.poster) + "')" : ""}">${s.poster ? "" : esc(s.title[0])}</div>
+      <b>${esc(s.title)}</b><span>${s.episodes.length} episode${s.episodes.length===1?"":"s"}</span>
+    </button>`).join("") + "</div>";
+}
+
+function watch(id, n){
+  const s = CATALOG.find(x => x.id === id);
+  if(!s) return home();
+  n = Math.min(Math.max(n || 0, 0), s.episodes.length - 1);
+  const ep = s.episodes[n];
+  app.innerHTML = `
+    <button class="back" id="back">Back to all titles</button>
+    <div class="layout">
+      <div>
+        <iframe class="player" src="${esc(embed(ep.drive))}" allow="autoplay; fullscreen" allowfullscreen title="${esc(ep.title)}"></iframe>
+        <h2>${esc(s.title)}: ${esc(ep.title)}</h2>
+        <p class="d">${esc(s.description || "")}</p>
+      </div>
+      <div class="eps" role="list">
+        ${s.episodes.map((e,i) => `<button class="ep" role="listitem" data-i="${i}" aria-current="${i===n}">${esc(e.title)}</button>`).join("")}
+      </div>
+    </div>`;
+  document.getElementById("back").onclick = () => { location.hash = ""; };
+  app.querySelectorAll(".ep").forEach(b => b.onclick = () => { location.hash = `#/${id}/${b.dataset.i}`; });
+  window.scrollTo(0,0);
+}
+
+function route(){
+  const [, id, n] = location.hash.split("/");
+  id ? watch(decodeURIComponent(id), parseInt(n,10)) : home();
+}
+
+app.addEventListener("click", e => {
+  const c = e.target.closest(".card");
+  if(c) location.hash = `#/${encodeURIComponent(c.dataset.id)}/0`;
+});
+document.getElementById("home").onclick = () => { q.value = ""; location.hash = ""; home(); };
+q.addEventListener("input", () => { if(location.hash) location.hash = ""; else home(); });
+window.addEventListener("hashchange", route);
+route();
+</script>
+</body>
+</html>
